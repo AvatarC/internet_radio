@@ -75,8 +75,9 @@ python radio.py --station wuvt --volume 50
 
 ### Playback controls
 
-- `=` / `+` — volume up
-- `-` — volume down
+- `=` / `+` — volume up (also unmutes)
+- `-` — volume down (also unmutes)
+- `m` — toggle mute; unmuting restores the exact volume you had before
 - `↑` / `↓` — switch to the previous/next station in `stations.txt`
 - `1`-`9` / `0` — jump straight to station 1-9 (or 10th with `0`)
 - `l` — reopen the full station picker (arrow keys + Enter, or `q`/`Esc` to
@@ -117,3 +118,7 @@ actual stream URL inside and use that instead.
   strict validation. This does *not* cover the `av`/AAC path — PyAV uses
   FFmpeg's own network stack rather than Python's `ssl` module, so an AAC
   stream with a bad certificate may still fail to connect.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

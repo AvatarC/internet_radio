@@ -210,15 +210,15 @@ def clamp(value, low, high):
 def apply_volume(source_stream, volume_state):
     """Wrap a miniaudio PCM sample generator, scaling samples by a live volume level.
 
-    volume_state is a dict with a "level" key (0.0-1.0) that can be updated
-    externally while this generator is running. Manual scaling is used instead
-    of PlaybackDevice.set_master_volume() because that method isn't present in
-    all installed builds of miniaudio.
+    volume_state is a dict with a "level" key (0.0-1.0) and a "muted" key
+    that can be updated externally while this generator is running. Manual
+    scaling is used instead of PlaybackDevice.set_master_volume() because
+    that method isn't present in all installed builds of miniaudio.
     """
     frames_wanted = yield b""
     while True:
         chunk = source_stream.send(frames_wanted)
-        level = volume_state["level"]
+        level = 0.0 if volume_state.get("muted") else volume_state["level"]
         if level < 1.0:
             for i in range(len(chunk)):
                 chunk[i] = int(chunk[i] * level)
@@ -347,7 +347,7 @@ def run(args):
         if url is None:
             return
 
-    volume_state = {"level": clamp(args.volume / 100.0, VOLUME_MIN, VOLUME_MAX)}
+    volume_state = {"level": clamp(args.volume / 100.0, VOLUME_MIN, VOLUME_MAX), "muted": False}
 
     while url is not None:
         url = play_stream(url, stations, volume_state, read_key)
@@ -379,13 +379,16 @@ def play_stream(url, stations, volume_state, read_key):
     device.start(volume_controlled_stream)
 
     def show_volume():
-        sys.stdout.write(f"\r\033[2KVolume: {round(volume_state['level'] * 100)}%")
+        if volume_state.get("muted"):
+            sys.stdout.write("\r\033[2KVolume: Muted")
+        else:
+            sys.stdout.write(f"\r\033[2KVolume: {round(volume_state['level'] * 100)}%")
         sys.stdout.flush()
 
     if stations:
-        print("Controls: '=' vol up, '-' vol down, up/down/number to switch station, 'l' station list, 'q' quit")
+        print("Controls: '=' vol up, '-' vol down, 'm' mute, up/down/number to switch station, 'l' station list, 'q' quit")
     else:
-        print("Controls: '=' volume up, '-' volume down, 'q' quit")
+        print("Controls: '=' volume up, '-' volume down, 'm' mute, 'q' quit")
     show_volume()
 
     current_index = next((i for i, (_n, u) in enumerate(stations) if u == url), None)
@@ -397,9 +400,14 @@ def play_stream(url, stations, volume_state, read_key):
 
             if key in ("=", "+"):
                 volume_state["level"] = clamp(volume_state["level"] + VOLUME_STEP, VOLUME_MIN, VOLUME_MAX)
+                volume_state["muted"] = False
                 show_volume()
             elif key == "-":
                 volume_state["level"] = clamp(volume_state["level"] - VOLUME_STEP, VOLUME_MIN, VOLUME_MAX)
+                volume_state["muted"] = False
+                show_volume()
+            elif key == "m":
+                volume_state["muted"] = not volume_state.get("muted")
                 show_volume()
             elif key in ("q", "ESC"):
                 break
